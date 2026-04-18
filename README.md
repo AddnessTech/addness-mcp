@@ -42,19 +42,31 @@ addness-mcp login
 
 ### 2. MCP クライアントに追加
 
-**Claude Code:**
+ログイン完了後、以下のようなコマンドが表示されます:
+
 ```bash
-claude mcp add addness -- addness-mcp
+claude mcp add -t stdio -e ADDNESS_API_TOKEN='sk-...' -e ADDNESS_API_URL='https://vt.api.addness.com' -s user addness -- '/path/to/addness-mcp'
 ```
 
-**その他の MCP クライアント（Cursor, Windsurf, VS Code 等）:**
+**Claude Code** の場合はこのコマンドをそのまま実行してください。
 
-MCP設定に以下を追加:
+**Codex** の場合は `~/.codex/config.toml` に追加:
+```toml
+[mcp_servers.addness]
+command = "/path/to/addness-mcp"
+env = { ADDNESS_API_URL = "https://vt.api.addness.com", ADDNESS_API_TOKEN = "sk-..." }
+```
+
+**その他の MCP クライアント（Cursor, Windsurf, VS Code 等）** の場合は MCP 設定に追加:
 ```json
 {
   "mcpServers": {
     "addness": {
-      "command": "addness-mcp"
+      "command": "/path/to/addness-mcp",
+      "env": {
+        "ADDNESS_API_URL": "https://vt.api.addness.com",
+        "ADDNESS_API_TOKEN": "sk-..."
+      }
     }
   }
 }
