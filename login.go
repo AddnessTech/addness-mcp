@@ -24,7 +24,10 @@ import (
 const (
 	frontendBaseURL = "https://www.addness.com"
 	loginTimeout    = 5 * time.Minute
+	httpTimeout     = 30 * time.Second
 )
+
+var loginHTTPClient = &http.Client{Timeout: httpTimeout}
 
 // runLogin performs the Desktop Auth flow to obtain an API key.
 func runLogin() error {
@@ -148,7 +151,7 @@ func registerInstallation(apiURL, installationID, publicKeyPEM string) error {
 		"installationId": installationID,
 		"publicKey":      publicKeyPEM,
 	})
-	resp, err := http.Post(apiURL+"/api/v1/public/desktop/auth/installations/register", "application/json", strings.NewReader(string(body)))
+	resp, err := loginHTTPClient.Post(apiURL+"/api/v1/public/desktop/auth/installations/register", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		return err
 	}
@@ -171,7 +174,7 @@ func createStartSession(apiURL, installationID, state, port, codeChallenge, sign
 		"timestamp":      timestamp,
 		"signature":      signature,
 	})
-	resp, err := http.Post(apiURL+"/api/v1/public/desktop/auth/start-sessions", "application/json", strings.NewReader(string(body)))
+	resp, err := loginHTTPClient.Post(apiURL+"/api/v1/public/desktop/auth/start-sessions", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		return "", err
 	}
@@ -209,7 +212,7 @@ func exchangeToken(apiURL, handoffID, codeVerifier, installationID, signature st
 		"signature":      signature,
 		"source":         "cli",
 	})
-	resp, err := http.Post(apiURL+"/api/v1/public/desktop/auth/token-exchange", "application/json", strings.NewReader(string(body)))
+	resp, err := loginHTTPClient.Post(apiURL+"/api/v1/public/desktop/auth/token-exchange", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}

@@ -22,13 +22,38 @@ echo "Downloading ${ASSET}..."
 
 mkdir -p "$INSTALL_DIR"
 
+CHECKSUMS_FILE="checksums.txt"
+
 # Try gh first, fall back to curl
 if command -v gh &> /dev/null; then
-  gh release download --repo "$REPO" --pattern "$ASSET" --dir "$INSTALL_DIR" --clobber
+  gh release download --repo "$REPO" --pattern "$ASSET" --pattern "$CHECKSUMS_FILE" --dir "$INSTALL_DIR" --clobber
 else
-  DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
-  curl -sL -o "${INSTALL_DIR}/${ASSET}" "$DOWNLOAD_URL"
+  DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download"
+  curl -sL -o "${INSTALL_DIR}/${ASSET}" "${DOWNLOAD_URL}/${ASSET}"
+  curl -sL -o "${INSTALL_DIR}/${CHECKSUMS_FILE}" "${DOWNLOAD_URL}/${CHECKSUMS_FILE}"
 fi
+
+# Verify checksum
+echo "Verifying checksum..."
+EXPECTED=$(grep "${ASSET}$" "${INSTALL_DIR}/${CHECKSUMS_FILE}" | awk '{print $1}')
+if [ -z "$EXPECTED" ]; then
+  echo "Warning: no checksum found for ${ASSET} in ${CHECKSUMS_FILE}, skipping verification"
+else
+  if command -v sha256sum &> /dev/null; then
+    ACTUAL=$(sha256sum "${INSTALL_DIR}/${ASSET}" | awk '{print $1}')
+  else
+    ACTUAL=$(shasum -a 256 "${INSTALL_DIR}/${ASSET}" | awk '{print $1}')
+  fi
+  if [ "$EXPECTED" != "$ACTUAL" ]; then
+    echo "Checksum verification failed!"
+    echo "  Expected: ${EXPECTED}"
+    echo "  Actual:   ${ACTUAL}"
+    rm -f "${INSTALL_DIR}/${ASSET}" "${INSTALL_DIR}/${CHECKSUMS_FILE}"
+    exit 1
+  fi
+  echo "Checksum OK"
+fi
+rm -f "${INSTALL_DIR}/${CHECKSUMS_FILE}"
 
 chmod +x "${INSTALL_DIR}/${ASSET}"
 mv "${INSTALL_DIR}/${ASSET}" "${INSTALL_DIR}/${BINARY_NAME}"
