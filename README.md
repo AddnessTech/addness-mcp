@@ -53,6 +53,15 @@ list_organizations → switch_organization
 | `ADDNESS_API_URL` | API のベース URL | `https://api.addness.com` |
 | `ADDNESS_API_TOKEN` | API トークン（`addness-mcp login` で自動設定） | - |
 
+## セキュリティについて
+
+このリポジトリはpublicですが、セキュリティ上の問題はありません。
+
+- **シークレットは含まれていません** — APIトークンは各ユーザーがローカルで `addness-mcp login` により設定します
+- **バックエンドのコードは含まれていません** — このリポジトリはREST APIを叩くMCPクライアントのみです
+- **APIエンドポイントのパス情報のみ** — リバースエンジニアリングでも取得可能な情報です
+- **認証はAPIキーで保護されています** — MCPサーバーを動かしても、認証なしではデータにアクセスできません
+
 ## ライセンス
 
 MIT
