@@ -40,15 +40,29 @@ irm https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.ps1 |
 addness-mcp login
 ```
 
-### 2. Claude Code に MCP サーバーを追加
+### 2. MCP クライアントに追加
 
+**Claude Code:**
 ```bash
 claude mcp add addness -- addness-mcp
 ```
 
+**その他の MCP クライアント（Cursor, Windsurf, VS Code 等）:**
+
+MCP設定に以下を追加:
+```json
+{
+  "mcpServers": {
+    "addness": {
+      "command": "addness-mcp"
+    }
+  }
+}
+```
+
 ### 3. 組織を選択
 
-Claude Code で以下を実行:
+MCP クライアントで以下を実行:
 ```
 list_organizations → switch_organization
 ```
