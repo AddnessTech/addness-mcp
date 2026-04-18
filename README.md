@@ -16,9 +16,11 @@ curl -sL https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.
 brew install AddnessTech/tap/addness-mcp
 ```
 
-### Windows
+### Windows (PowerShell)
 
-[Releases](https://github.com/AddnessTech/addness-mcp/releases/latest) から `addness-mcp-windows-amd64.exe` をダウンロードし、PATHの通った場所に `addness-mcp.exe` として配置してください。
+```powershell
+irm https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.ps1 | iex
+```
 
 ### 手動インストール
 
