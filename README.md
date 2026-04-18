@@ -4,9 +4,31 @@
 
 ## インストール
 
+### macOS / Linux
+
 ```bash
 curl -sL https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.sh | bash
 ```
+
+### Homebrew
+
+```bash
+brew install AddnessTech/tap/addness-mcp
+```
+
+### Windows
+
+[Releases](https://github.com/AddnessTech/addness-mcp/releases/latest) から `addness-mcp-windows-amd64.exe` をダウンロードし、PATHの通った場所に `addness-mcp.exe` として配置してください。
+
+### 手動インストール
+
+[Releases](https://github.com/AddnessTech/addness-mcp/releases/latest) から OS/アーキテクチャに合ったバイナリをダウンロード:
+
+| OS | Intel/AMD | Apple Silicon/ARM |
+|---|---|---|
+| macOS | `addness-mcp-darwin-amd64` | `addness-mcp-darwin-arm64` |
+| Linux | `addness-mcp-linux-amd64` | `addness-mcp-linux-arm64` |
+| Windows | `addness-mcp-windows-amd64.exe` | `addness-mcp-windows-arm64.exe` |
 
 ## セットアップ
 
