@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # Addness MCP Server installer
-# Usage: curl -sL <raw-url> | bash
-# Or:    gh api repos/AddnessTech/addness-mcp/contents/install.sh -q .content | base64 -d | bash
+# Usage: curl -sL https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.sh | bash
 
 REPO="AddnessTech/addness-mcp"
 INSTALL_DIR="${HOME}/.local/bin"
@@ -22,7 +21,15 @@ ASSET="${BINARY_NAME}-${OS}-${ARCH}"
 echo "Downloading ${ASSET}..."
 
 mkdir -p "$INSTALL_DIR"
-gh release download --repo "$REPO" --pattern "$ASSET" --dir "$INSTALL_DIR" --clobber
+
+# Try gh first, fall back to curl
+if command -v gh &> /dev/null; then
+  gh release download --repo "$REPO" --pattern "$ASSET" --dir "$INSTALL_DIR" --clobber
+else
+  DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
+  curl -sL -o "${INSTALL_DIR}/${ASSET}" "$DOWNLOAD_URL"
+fi
+
 chmod +x "${INSTALL_DIR}/${ASSET}"
 mv "${INSTALL_DIR}/${ASSET}" "${INSTALL_DIR}/${BINARY_NAME}"
 

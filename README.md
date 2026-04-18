@@ -5,7 +5,7 @@
 ## インストール
 
 ```bash
-gh api repos/AddnessTech/addness-mcp/contents/install.sh -q .content | base64 -d | bash
+curl -sL https://raw.githubusercontent.com/AddnessTech/addness-mcp/main/install.sh | bash
 ```
 
 ## セットアップ
