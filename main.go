@@ -1,14 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/mark3labs/mcp-go/server"
 )
 
+var version = "dev"
+
 func main() {
 	// Subcommands
+	if len(os.Args) > 1 && os.Args[1] == "version" || len(os.Args) > 1 && os.Args[1] == "--version" || len(os.Args) > 1 && os.Args[1] == "-v" {
+		fmt.Println("addness-mcp " + version)
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "login" {
 		if err := runLogin(); err != nil {
 			log.Fatalf("login failed: %v", err)
@@ -31,7 +38,7 @@ func main() {
 
 	s := server.NewMCPServer(
 		"addness",
-		"1.0.0",
+		version,
 		server.WithToolCapabilities(true),
 	)
 
