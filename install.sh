@@ -26,16 +26,22 @@ CHECKSUMS_FILE="checksums.txt"
 
 # Try gh first, fall back to curl
 if command -v gh &> /dev/null; then
-  gh release download --repo "$REPO" --pattern "$ASSET" --pattern "$CHECKSUMS_FILE" --dir "$INSTALL_DIR" --clobber
+  gh release download --repo "$REPO" --pattern "$ASSET" --dir "$INSTALL_DIR" --clobber
+  gh release download --repo "$REPO" --pattern "$CHECKSUMS_FILE" --dir "$INSTALL_DIR" --clobber 2>/dev/null || true
 else
   DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download"
-  curl -sL -o "${INSTALL_DIR}/${ASSET}" "${DOWNLOAD_URL}/${ASSET}"
-  curl -sL -o "${INSTALL_DIR}/${CHECKSUMS_FILE}" "${DOWNLOAD_URL}/${CHECKSUMS_FILE}"
+  curl -sfL -o "${INSTALL_DIR}/${ASSET}" "${DOWNLOAD_URL}/${ASSET}"
+  curl -sfL -o "${INSTALL_DIR}/${CHECKSUMS_FILE}" "${DOWNLOAD_URL}/${CHECKSUMS_FILE}" || true
 fi
 
 # Verify checksum
 echo "Verifying checksum..."
-EXPECTED=$(grep "${ASSET}$" "${INSTALL_DIR}/${CHECKSUMS_FILE}" | awk '{print $1}')
+if [ ! -f "${INSTALL_DIR}/${CHECKSUMS_FILE}" ]; then
+  echo "Warning: ${CHECKSUMS_FILE} not found, skipping verification"
+  EXPECTED=""
+else
+  EXPECTED=$(grep "${ASSET}$" "${INSTALL_DIR}/${CHECKSUMS_FILE}" | awk '{print $1}')
+fi
 if [ -z "$EXPECTED" ]; then
   echo "Warning: no checksum found for ${ASSET} in ${CHECKSUMS_FILE}, skipping verification"
 else
