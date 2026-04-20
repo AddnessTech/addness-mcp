@@ -83,6 +83,7 @@ func main() {
 	s.AddTool(unarchiveGoalTool(), handleUnarchiveGoal(client))
 
 	// Comments
+	s.AddTool(listMyCommentsTool(), handleListMyComments(client))
 	s.AddTool(listCommentsTool(), handleListComments(client))
 	s.AddTool(addCommentTool(), handleAddComment(client))
 	s.AddTool(updateCommentTool(), handleUpdateComment(client))
@@ -114,6 +115,11 @@ func main() {
 	s.AddTool(getMemberActivityTool(), handleGetMemberActivity(client))
 	s.AddTool(getGoalActivityTool(), handleGetGoalActivity(client))
 	s.AddTool(getActivitySummaryTool(), handleGetActivitySummary(client))
+
+	// Deliverables
+	s.AddTool(listDeliverablesTool(), handleListDeliverables(client))
+	s.AddTool(getDeliverableTool(), handleGetDeliverable(client))
+	s.AddTool(createDeliverableTool(), handleCreateDeliverable(client))
 
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("server error: %v", err)
