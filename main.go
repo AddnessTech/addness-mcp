@@ -10,6 +10,15 @@ import (
 
 var version = "dev"
 
+const serverInstructions = `Addness はチームの目標・タスク・コンテキストを一元管理するワークスペースです。
+以下の原則に従ってください。
+
+1. ゴールはタイトル名で呼ぶ — ユーザーへの出力ではゴールのタイトル名を使い、IDは補助情報として扱う。
+2. AI署名 — AIエージェントがコメントを投稿する場合、末尾に署名（例: "Claude Codeより"）を付けて人間のコメントと区別する。
+3. CANCELLED = 一時停止 — ステータス CANCELLED は「中止」ではなく「一時停止（paused）」を意味する。親がCANCELLEDでも配下を勝手に移動・削除しないこと。
+4. DoDの確認 — Definition of Done（完了基準）が空のゴールに取り組む前に、オーナーとDoDを擦り合わせることを推奨する。
+5. Addnessが真実源 — タスク・プロジェクト・進捗の情報はAddnessに集約する。ローカルファイルや外部ツールではなく、Addnessのゴール・コメントに記録すること。`
+
 func main() {
 	// Subcommands
 	if len(os.Args) > 1 && os.Args[1] == "version" || len(os.Args) > 1 && os.Args[1] == "--version" || len(os.Args) > 1 && os.Args[1] == "-v" {
@@ -40,6 +49,7 @@ func main() {
 		"addness",
 		version,
 		server.WithToolCapabilities(true),
+		server.WithInstructions(serverInstructions),
 	)
 
 	// Auth

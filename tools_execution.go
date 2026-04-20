@@ -17,7 +17,7 @@ func listTodaysGoalsTool() mcp.Tool {
 			mcp.Description("Date in YYYY-MM-DD format (default: today)"),
 		),
 		mcp.WithString("member_id",
-			mcp.Description("Member ID (short ID) to view another member's goals. Omit for your own."),
+			mcp.Description("Member ID (short ID) to view another member's goals. Omit to see your own goals only."),
 		),
 		mcp.WithBoolean("include_completed",
 			mcp.Description("true to include completed goals (default: false)"),
@@ -47,6 +47,8 @@ func handleListTodaysGoals(client *AddnessClient) server.ToolHandlerFunc {
 				return errResult(err.Error()), nil
 			}
 			path += "&member_id=" + url.QueryEscape(resolved)
+		} else if myID := client.MemberID(); myID != "" {
+			path += "&member_id=" + url.QueryEscape(myID)
 		}
 
 		data, err := client.Get(ctx, path)

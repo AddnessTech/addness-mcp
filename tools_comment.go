@@ -15,7 +15,8 @@ func addCommentTool() mcp.Tool {
 			"Goalにコメントを投稿する。Slackやメールではなく、Goalに直接コメントすることで："+
 				"文脈がゴールに集約される／後から経緯を追える／通知もAddness内で完結／"+
 				"「誰が・どのゴールで・何を話してるか」が構造化される。"+
-				"parent_idでスレッド返信も可能。mentionsでメンバーをメンションすると通知が届く。"),
+				"parent_idでスレッド返信も可能。mentionsでメンバーをメンションすると通知が届く。"+
+				"AIエージェントが投稿する場合は、末尾に署名（例: 'Claude Codeより'）を付けて人間のコメントと区別すること。"),
 		mcp.WithString("goal_id",
 			mcp.Required(),
 			mcp.Description("Goal ID (short ID)"),

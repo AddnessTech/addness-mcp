@@ -114,7 +114,7 @@ func runLogin() error {
 	}
 
 	if result.APIKey == "" {
-		return fmt.Errorf("no API key returned (user may not belong to any organization)")
+		return fmt.Errorf("no API key returned: you don't belong to any organization yet. Create a workspace at %s first, then try again", frontendBaseURL)
 	}
 
 	// 9. Output config

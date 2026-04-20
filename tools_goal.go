@@ -200,7 +200,7 @@ func updateGoalTool() mcp.Tool {
 			mcp.Description("完了基準（DoD）。ゴールが達成された状態を記述する。"),
 		),
 		mcp.WithString("status",
-			mcp.Description("New status"),
+			mcp.Description("New status. CANCELLED means 'paused' (temporarily on hold), not terminated."),
 			mcp.Enum("NONE", "IN_PROGRESS", "COMPLETED", "CANCELLED"),
 		),
 		mcp.WithString("due_date",
@@ -249,7 +249,7 @@ func handleUpdateGoal(client *AddnessClient) server.ToolHandlerFunc {
 			return errResult(fmt.Sprintf("parse error: %v", err)), nil
 		}
 
-		return textResult("Goal updated.\n\n" + formatGoalDetail(goal)), nil
+		return textResult("Goal updated.\n\n" + formatGoalDetailWithURL(goal)), nil
 	}
 }
 
@@ -316,7 +316,7 @@ func handleCompleteGoal(client *AddnessClient) server.ToolHandlerFunc {
 		if undo {
 			action = "uncompleted"
 		}
-		return textResult(fmt.Sprintf("Goal %s.\n\n%s", action, formatGoalDetail(goal))), nil
+		return textResult(fmt.Sprintf("Goal %s.\n\n%s", action, formatGoalDetailWithURL(goal))), nil
 	}
 }
 
@@ -403,7 +403,7 @@ func completeViaExecution(ctx context.Context, client *AddnessClient, goalID, ex
 	if undo {
 		action = "uncompleted (today's execution)"
 	}
-	return textResult(fmt.Sprintf("Goal %s.\n\n%s", action, formatGoalDetail(goal))), nil
+	return textResult(fmt.Sprintf("Goal %s.\n\n%s", action, formatGoalDetailWithURL(goal))), nil
 }
 
 func createGoalTool() mcp.Tool {
@@ -476,7 +476,7 @@ func handleCreateGoal(client *AddnessClient) server.ToolHandlerFunc {
 			return errResult(fmt.Sprintf("parse error: %v", err)), nil
 		}
 
-		result := "Goal created.\n\n" + formatGoalDetail(goal)
+		result := "Goal created.\n\n" + formatGoalDetailWithURL(goal)
 
 		// Set recurring pattern if requested
 		if pattern := argStr(args, "recurring"); pattern != "" {
@@ -545,7 +545,7 @@ func handleMoveGoal(client *AddnessClient) server.ToolHandlerFunc {
 		if err != nil {
 			return errResult(fmt.Sprintf("move succeeded but failed to parse response: %v", err)), nil
 		}
-		return textResult("Goal moved.\n\n" + formatGoalDetail(goal)), nil
+		return textResult("Goal moved.\n\n" + formatGoalDetailWithURL(goal)), nil
 	}
 }
 

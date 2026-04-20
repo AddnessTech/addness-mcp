@@ -19,6 +19,10 @@ func listNotificationsTool() mcp.Tool {
 		mcp.WithNumber("limit",
 			mcp.Description("Max number of notifications to return (default: 50, max: 100)"),
 		),
+		mcp.WithString("category",
+			mcp.Description("Filter by notification category"),
+			mcp.Enum("mentions", "comments", "reactions", "completed", "created", "updates", "assignments", "deliverables", "ai"),
+		),
 	)
 }
 
@@ -49,6 +53,9 @@ func handleListNotifications(client *AddnessClient) server.ToolHandlerFunc {
 				readVal = "true"
 			}
 			path += "&read=" + readVal
+		}
+		if category := argStr(args, "category"); category != "" {
+			path += "&event_tag=" + category
 		}
 
 		data, err := client.Get(ctx, path)

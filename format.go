@@ -400,6 +400,7 @@ func formatNotifications(notifs []notifInfo) string {
 
 type goalInfo struct {
 	ID            string
+	fullID        string
 	Title         string
 	Status        string
 	Description   string
@@ -598,6 +599,7 @@ func extractGoalInfo(g map[string]any, ids *ShortIDCache) goalInfo {
 
 	return goalInfo{
 		ID:            ids.Shorten(fullID),
+		fullID:        fullID,
 		Title:         title,
 		Status:        status,
 		Description:   desc,
@@ -727,13 +729,28 @@ func parseSearchResults(data []byte, ids *ShortIDCache) ([]goalInfo, error) {
 }
 
 func formatGoalDetail(g goalInfo) string {
+	return formatGoalDetailOpts(g, false)
+}
+
+func formatGoalDetailWithURL(g goalInfo) string {
+	return formatGoalDetailOpts(g, true)
+}
+
+func formatGoalDetailOpts(g goalInfo, includeURL bool) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# %s %s\n", goalIcon(g), g.Title)
-	fmt.Fprintf(&sb, "ID: %s | Status: %s", g.ID, g.Status)
+	displayStatus := g.Status
+	if g.Status == "CANCELLED" {
+		displayStatus = "PAUSED"
+	}
+	fmt.Fprintf(&sb, "ID: %s | Status: %s", g.ID, displayStatus)
 	if g.Owner != "" {
 		fmt.Fprintf(&sb, " | Owner: %s", g.Owner)
 	}
 	sb.WriteString("\n")
+	if includeURL && g.fullID != "" {
+		fmt.Fprintf(&sb, "URL: %s/goals/%s\n", frontendBaseURL, g.fullID)
+	}
 	if g.HasRecurring {
 		if g.RecurringDesc != "" {
 			fmt.Fprintf(&sb, "Recurring: %s\n", g.RecurringDesc)
@@ -755,6 +772,8 @@ func formatGoalDetail(g goalInfo) string {
 	}
 	if g.Description != "" {
 		fmt.Fprintf(&sb, "\nDefinition of Done:\n%s\n", g.Description)
+	} else {
+		sb.WriteString("\n⚠ Definition of Done is empty. Align the DoD with the goal owner before starting work.\n")
 	}
 	return sb.String()
 }
@@ -1061,7 +1080,8 @@ func statusIcon(status string) string {
 	case "IN_PROGRESS":
 		return "[~]"
 	case "CANCELLED":
-		return "[-]"
+		// CANCELLED means "paused" in Addness, not terminated/deleted.
+		return "[paused]"
 	case "BLOCKED":
 		return "[!]"
 	default:
