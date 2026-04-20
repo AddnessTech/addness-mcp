@@ -77,6 +77,7 @@ func handleAddComment(client *AddnessClient) server.ToolHandlerFunc {
 		if len(mentionUUIDs) > 0 {
 			result += fmt.Sprintf(" (%d member(s) mentioned — they will be notified)", len(mentionUUIDs))
 		}
+		result += fmt.Sprintf("\nGoal URL: %s/goals/%s", frontendBaseURL, goalID)
 		return textResult(result), nil
 	}
 }
@@ -258,6 +259,54 @@ func resolveMentionIDs(mentionsStr string, ids *ShortIDCache) ([]string, error) 
 		uuids = append(uuids, fullID)
 	}
 	return uuids, nil
+}
+
+func listMyCommentsTool() mcp.Tool {
+	return mcp.NewTool("list_my_comments",
+		mcp.WithDescription("自分が投稿したコメント一覧を取得する。どのGoalに何を書いたか振り返るのに便利。"),
+		mcp.WithNumber("limit",
+			mcp.Description("Max number of comments to return (default: 50, max: 100)"),
+		),
+	)
+}
+
+func handleListMyComments(client *AddnessClient) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		if err := requireOrg(client); err != nil {
+			return errResult(err.Error()), nil
+		}
+
+		memberID := client.MemberID()
+		if memberID == "" {
+			return errResult("member ID not resolved: use switch_organization first"), nil
+		}
+
+		args := req.GetArguments()
+		limit := 50
+		if v, ok := args["limit"].(float64); ok && v > 0 {
+			limit = int(v)
+			if limit > 100 {
+				limit = 100
+			}
+		}
+
+		path := fmt.Sprintf("/api/v1/team/comments?author_id=%s&limit=%d&sort=desc", memberID, limit)
+
+		data, err := client.Get(ctx, path)
+		if err != nil {
+			return errResult(fmt.Sprintf("failed: %v", err)), nil
+		}
+
+		comments, err := parseComments(data, client.ids)
+		if err != nil {
+			return errResult(fmt.Sprintf("parse error: %v", err)), nil
+		}
+
+		if len(comments) == 0 {
+			return textResult("No comments found."), nil
+		}
+		return textResult(formatComments(comments)), nil
+	}
 }
 
 func listCommentsTool() mcp.Tool {

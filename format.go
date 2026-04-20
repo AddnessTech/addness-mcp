@@ -577,7 +577,10 @@ func extractGoalInfo(g map[string]any, ids *ShortIDCache) goalInfo {
 	fullID, _ := g["id"].(string)
 	title, _ := g["title"].(string)
 	status, _ := g["status"].(string)
-	desc, _ := g["description"].(string)
+	desc, _ := g["definitionOfDone"].(string)
+	if desc == "" {
+		desc, _ = g["description"].(string)
+	}
 	dueDate, _ := g["dueDate"].(string)
 	completedAt, _ := g["completedAt"].(string)
 	createdAt, _ := g["createdAt"].(string)
@@ -729,14 +732,6 @@ func parseSearchResults(data []byte, ids *ShortIDCache) ([]goalInfo, error) {
 }
 
 func formatGoalDetail(g goalInfo) string {
-	return formatGoalDetailOpts(g, false)
-}
-
-func formatGoalDetailWithURL(g goalInfo) string {
-	return formatGoalDetailOpts(g, true)
-}
-
-func formatGoalDetailOpts(g goalInfo, includeURL bool) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# %s %s\n", goalIcon(g), g.Title)
 	displayStatus := g.Status
@@ -748,7 +743,7 @@ func formatGoalDetailOpts(g goalInfo, includeURL bool) string {
 		fmt.Fprintf(&sb, " | Owner: %s", g.Owner)
 	}
 	sb.WriteString("\n")
-	if includeURL && g.fullID != "" {
+	if g.fullID != "" {
 		fmt.Fprintf(&sb, "URL: %s/goals/%s\n", frontendBaseURL, g.fullID)
 	}
 	if g.HasRecurring {
