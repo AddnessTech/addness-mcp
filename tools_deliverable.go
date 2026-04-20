@@ -190,7 +190,7 @@ func parseDeliverableList(data []byte, ids *ShortIDCache) ([]deliverableInfo, er
 	var raw struct {
 		Deliverables []map[string]any `json:"deliverables"`
 	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(unwrapData(data), &raw); err != nil {
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func parseDeliverableList(data []byte, ids *ShortIDCache) ([]deliverableInfo, er
 
 func parseDeliverable(data []byte, ids *ShortIDCache) (deliverableInfo, error) {
 	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(unwrapData(data), &raw); err != nil {
 		return deliverableInfo{}, err
 	}
 	return extractDeliverableInfo(raw, ids), nil
@@ -211,7 +211,7 @@ func parseDeliverable(data []byte, ids *ShortIDCache) (deliverableInfo, error) {
 
 func parseDeliverableCreate(data []byte, ids *ShortIDCache) (deliverableCreateResult, error) {
 	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(unwrapData(data), &raw); err != nil {
 		return deliverableCreateResult{}, err
 	}
 
