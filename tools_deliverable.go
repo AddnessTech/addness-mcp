@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -90,7 +96,7 @@ func createDeliverableTool() mcp.Tool {
 	return mcp.NewTool("create_deliverable",
 		mcp.WithDescription(
 			"Goalに成果物を追加する。ドキュメント（テキスト）・リンク・フォルダを作成可能。"+
-				"ファイルアップロードの場合はnode_type='file'とfile_nameを指定し、レスポンスのupload_urlにファイルをPUTする。"),
+				"ファイルアップロードの場合はnode_type='file'とfile_name・file_pathを指定すると自動アップロードされる。"),
 		mcp.WithString("goal_id",
 			mcp.Required(),
 			mcp.Description("Goal ID (short ID)"),
@@ -112,6 +118,9 @@ func createDeliverableTool() mcp.Tool {
 		),
 		mcp.WithString("file_name",
 			mcp.Description("File name with extension (for file type, e.g. 'report.pdf')"),
+		),
+		mcp.WithString("file_path",
+			mcp.Description("Local file path to upload (for file type). The file will be uploaded automatically."),
 		),
 		mcp.WithString("parent_id",
 			mcp.Description("Parent deliverable ID (short ID) to create inside a folder"),
@@ -138,7 +147,31 @@ func handleCreateDeliverable(client *AddnessClient) server.ToolHandlerFunc {
 			body["linkUrl"] = v
 		}
 		if v := argStr(args, "file_name"); v != "" {
-			body["fileName"] = v
+			fileInfo := map[string]any{
+				"fileName": v,
+			}
+			// Detect content type from extension
+			switch strings.ToLower(filepath.Ext(v)) {
+			case ".png":
+				fileInfo["contentType"] = "image/png"
+			case ".jpg", ".jpeg":
+				fileInfo["contentType"] = "image/jpeg"
+			case ".gif":
+				fileInfo["contentType"] = "image/gif"
+			case ".pdf":
+				fileInfo["contentType"] = "application/pdf"
+			case ".txt":
+				fileInfo["contentType"] = "text/plain"
+			default:
+				fileInfo["contentType"] = "application/octet-stream"
+			}
+			// Get file size if file_path is provided
+			if fp := argStr(args, "file_path"); fp != "" {
+				if stat, err := os.Stat(fp); err == nil {
+					fileInfo["fileSize"] = stat.Size()
+				}
+			}
+			body["file"] = fileInfo
 		}
 		if v := argStr(args, "parent_id"); v != "" {
 			resolved, err := client.ids.Resolve(v)
@@ -160,9 +193,53 @@ func handleCreateDeliverable(client *AddnessClient) server.ToolHandlerFunc {
 
 		result := "Deliverable created.\n\n" + formatDeliverableDetail(d.deliverable)
 		if d.uploadURL != "" {
-			result += fmt.Sprintf("\nUpload URL: %s\nUpload the file with: curl -X PUT '%s' --upload-file <filepath>", d.uploadURL, d.uploadURL)
+			filePath := argStr(args, "file_path")
+			if filePath != "" {
+				if err := uploadFile(ctx, d.uploadURL, d.uploadValues, filePath); err != nil {
+					result += fmt.Sprintf("\n⚠ File upload failed: %v", err)
+				} else {
+					result += "\nFile uploaded successfully."
+				}
+			} else {
+				result += fmt.Sprintf("\nUpload URL: %s\nUpload the file with: curl -X PUT '%s' --upload-file <filepath>", d.uploadURL, d.uploadURL)
+			}
 		}
 		return textResult(result), nil
+	}
+}
+
+func deleteDeliverableTool() mcp.Tool {
+	return mcp.NewTool("delete_deliverable",
+		mcp.WithDescription("成果物を削除する。この操作は取り消せない。"),
+		mcp.WithString("goal_id",
+			mcp.Required(),
+			mcp.Description("Goal ID (short ID)"),
+		),
+		mcp.WithString("deliverable_id",
+			mcp.Required(),
+			mcp.Description("Deliverable ID (short ID)"),
+		),
+	)
+}
+
+func handleDeleteDeliverable(client *AddnessClient) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		args := req.GetArguments()
+		goalID, err := client.ids.Resolve(argStr(args, "goal_id"))
+		if err != nil {
+			return errResult(err.Error()), nil
+		}
+		deliverableID, err := client.ids.Resolve(argStr(args, "deliverable_id"))
+		if err != nil {
+			return errResult(err.Error()), nil
+		}
+
+		_, err = client.Delete(ctx, fmt.Sprintf("/api/v1/team/objectives/%s/deliverables/%s", goalID, deliverableID), nil)
+		if err != nil {
+			return errResult(fmt.Sprintf("failed: %v", err)), nil
+		}
+
+		return textResult("Deliverable deleted."), nil
 	}
 }
 
@@ -182,8 +259,9 @@ type deliverableInfo struct {
 }
 
 type deliverableCreateResult struct {
-	deliverable deliverableInfo
-	uploadURL   string
+	deliverable  deliverableInfo
+	uploadURL    string
+	uploadValues map[string]string
 }
 
 func parseDeliverableList(data []byte, ids *ShortIDCache) ([]deliverableInfo, error) {
@@ -220,6 +298,14 @@ func parseDeliverableCreate(data []byte, ids *ShortIDCache) (deliverableCreateRe
 	}
 	if upload, ok := raw["uploadRequest"].(map[string]any); ok {
 		result.uploadURL, _ = upload["url"].(string)
+		if values, ok := upload["values"].(map[string]any); ok {
+			result.uploadValues = make(map[string]string, len(values))
+			for k, v := range values {
+				if s, ok := v.(string); ok {
+					result.uploadValues[k] = s
+				}
+			}
+		}
 	}
 	return result, nil
 }
@@ -312,4 +398,77 @@ func formatDeliverableDetail(d deliverableInfo) string {
 		fmt.Fprintf(&sb, "\nContent:\n%s\n", d.Content)
 	}
 	return sb.String()
+}
+
+// uploadFile uploads a local file to S3 using a presigned POST URL.
+func uploadFile(_ context.Context, uploadURL string, values map[string]string, filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("opening file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	// Write form fields first (required by S3 presigned POST)
+	for k, v := range values {
+		if err := w.WriteField(k, v); err != nil {
+			return fmt.Errorf("writing field %s: %w", k, err)
+		}
+	}
+	// Add Content-Type field if not already in values (required by S3 policy)
+	if _, ok := values["Content-Type"]; !ok {
+		ct := detectContentType(filePath)
+		if err := w.WriteField("Content-Type", ct); err != nil {
+			return fmt.Errorf("writing Content-Type: %w", err)
+		}
+	}
+
+	// Write file field last
+	part, err := w.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		return fmt.Errorf("creating form file: %w", err)
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return fmt.Errorf("copying file: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("closing multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, uploadURL, &buf)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("uploading: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload failed (HTTP %d): %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func detectContentType(filePath string) string {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".pdf":
+		return "application/pdf"
+	case ".txt":
+		return "text/plain"
+	default:
+		return "application/octet-stream"
+	}
 }

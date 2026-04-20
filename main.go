@@ -120,6 +120,7 @@ func main() {
 	s.AddTool(listDeliverablesTool(), handleListDeliverables(client))
 	s.AddTool(getDeliverableTool(), handleGetDeliverable(client))
 	s.AddTool(createDeliverableTool(), handleCreateDeliverable(client))
+	s.AddTool(deleteDeliverableTool(), handleDeleteDeliverable(client))
 
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("server error: %v", err)
