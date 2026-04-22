@@ -1,7 +1,9 @@
 # Addness MCP Server
 
 [Addness](https://www.addness.com) の MCP (Model Context Protocol) サーバー。Claude Code から Addness のゴール管理を操作できます。
-<img width="1122" height="1402" alt="ChatGPT Image 2026年4月22日 16_09_05" src="https://github.com/user-attachments/assets/5103fa52-2eb3-424f-b8b5-0a8022edbe63" />
+<p align="center">
+  <img width="400" alt="Addness MCP Server" src="https://github.com/user-attachments/assets/5103fa52-2eb3-424f-b8b5-0a8022edbe63" />
+</p>
 
 ## インストール
 
