@@ -982,11 +982,13 @@ func formatMembers(members []memberInfo) string {
 // --- Comment types & formatting ---
 
 type commentInfo struct {
-	ID        string
-	Content   string
-	Author    string
-	ParentID  string
-	CreatedAt string
+	ID         string
+	Content    string
+	Author     string
+	ParentID   string
+	CreatedAt  string
+	ResolvedAt string
+	Resolver   string
 }
 
 func parseComments(data []byte, ids *ShortIDCache) ([]commentInfo, error) {
@@ -1031,12 +1033,20 @@ func parseComments(data []byte, ids *ShortIDCache) ([]commentInfo, error) {
 			}
 		}
 
+		resolvedAt, _ := c["resolvedAt"].(string)
+		resolver := ""
+		if r, ok := c["resolver"].(map[string]any); ok {
+			resolver, _ = r["name"].(string)
+		}
+
 		comments = append(comments, commentInfo{
-			ID:        ids.Shorten(fullID),
-			Content:   content,
-			Author:    author,
-			ParentID:  ids.ShortenOptional(strPtr(parentID)),
-			CreatedAt: formatTime(createdAt),
+			ID:         ids.Shorten(fullID),
+			Content:    content,
+			Author:     author,
+			ParentID:   ids.ShortenOptional(strPtr(parentID)),
+			CreatedAt:  formatTime(createdAt),
+			ResolvedAt: formatTime(resolvedAt),
+			Resolver:   resolver,
 		})
 	}
 	return comments, nil
@@ -1050,7 +1060,15 @@ func formatComments(comments []commentInfo) string {
 		if c.ParentID != "" {
 			prefix = "  ↳ "
 		}
-		fmt.Fprintf(&sb, "%s[%s] (%s, %s)\n", prefix, c.ID, c.Author, c.CreatedAt)
+		header := fmt.Sprintf("%s[%s] (%s, %s)", prefix, c.ID, c.Author, c.CreatedAt)
+		if c.ResolvedAt != "" {
+			header += " [RESOLVED"
+			if c.Resolver != "" {
+				header += " by " + c.Resolver
+			}
+			header += "]"
+		}
+		sb.WriteString(header + "\n")
 		// Print body with indentation to keep comment boundaries clear
 		indent := prefix + "  "
 		for _, line := range strings.Split(c.Content, "\n") {
