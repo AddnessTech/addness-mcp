@@ -16,6 +16,7 @@ func addCommentTool() mcp.Tool {
 				"文脈がゴールに集約される／後から経緯を追える／通知もAddness内で完結／"+
 				"「誰が・どのゴールで・何を話してるか」が構造化される。"+
 				"parent_idでスレッド返信も可能。mentionsでメンバーをメンションすると通知が届く。"+
+				"メンションする場合は、content本文中にも @shortID を含めること（例: '@abc12345 確認お願いします'）。"+
 				"AIエージェントが投稿する場合は、末尾に署名（例: 'Claude Codeより'）を付けて人間のコメントと区別すること。"),
 		mcp.WithString("goal_id",
 			mcp.Required(),
@@ -52,6 +53,10 @@ func handleAddComment(client *AddnessClient) server.ToolHandlerFunc {
 			return errResult(err.Error()), nil
 		}
 
+		// Ensure all mentioned UUIDs appear as @UUID in content
+		// so the backend can resolve them to display names on read.
+		content = ensureMentionsInContent(content, mentionUUIDs)
+
 		body := map[string]any{
 			"commentableType": "objective",
 			"commentableId":   goalID,
@@ -84,7 +89,10 @@ func handleAddComment(client *AddnessClient) server.ToolHandlerFunc {
 
 func updateCommentTool() mcp.Tool {
 	return mcp.NewTool("update_comment",
-		mcp.WithDescription("コメントを編集する。自分が投稿したコメントのみ編集可能。メンションの変更も可能。"),
+		mcp.WithDescription(
+			"コメントを編集する。自分が投稿したコメントのみ編集可能。メンションの変更も可能。"+
+				"メンションする場合は、content本文中にも @shortID を含めること。"+
+				"mentionsを省略すると、content内のインライン@メンションが使われる（@shortIDがなければメンションはクリアされる）。"),
 		mcp.WithString("comment_id",
 			mcp.Required(),
 			mcp.Description("Comment ID (short ID)"),
@@ -94,7 +102,7 @@ func updateCommentTool() mcp.Tool {
 			mcp.Description("New comment text (max 10000 chars)"),
 		),
 		mcp.WithString("mentions",
-			mcp.Description("Comma-separated member IDs (short ID) to @mention. Omit to keep existing mentions."),
+			mcp.Description("Comma-separated member IDs (short ID) to @mention. Also include @shortID in content text. Omit to use inline @mentions from content."),
 		),
 	)
 }
@@ -116,6 +124,10 @@ func handleUpdateComment(client *AddnessClient) server.ToolHandlerFunc {
 		if err != nil {
 			return errResult(err.Error()), nil
 		}
+
+		// Ensure all mentioned UUIDs appear as @UUID in content
+		// so the backend can resolve them to display names on read.
+		content = ensureMentionsInContent(content, mentionUUIDs)
 
 		body := map[string]any{
 			"content": content,
@@ -241,6 +253,39 @@ func handleToggleReaction(client *AddnessClient) server.ToolHandlerFunc {
 	}
 }
 
+// ensureMentionsInContent appends @UUID references for any mentions
+// not already present as @UUID in the content text.
+// This ensures the backend can resolve mentions to display names on read.
+func ensureMentionsInContent(content string, mentionUUIDs []string) string {
+	if len(mentionUUIDs) == 0 {
+		return content
+	}
+
+	lowerContent := strings.ToLower(content)
+	var missing []string
+	for _, uuid := range mentionUUIDs {
+		if !strings.Contains(lowerContent, "@"+strings.ToLower(uuid)) {
+			missing = append(missing, uuid)
+		}
+	}
+
+	if len(missing) == 0 {
+		return content
+	}
+
+	var sb strings.Builder
+	sb.WriteString(content)
+	sb.WriteString(" ")
+	for i, uuid := range missing {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteByte('@')
+		sb.WriteString(uuid)
+	}
+	return sb.String()
+}
+
 // resolveMentionIDs resolves comma-separated short IDs to full UUIDs.
 func resolveMentionIDs(mentionsStr string, ids *ShortIDCache) ([]string, error) {
 	if mentionsStr == "" {
@@ -263,9 +308,13 @@ func resolveMentionIDs(mentionsStr string, ids *ShortIDCache) ([]string, error) 
 
 func listMyCommentsTool() mcp.Tool {
 	return mcp.NewTool("list_my_comments",
-		mcp.WithDescription("自分が投稿したコメント一覧を取得する。どのGoalに何を書いたか振り返るのに便利。"),
+		mcp.WithDescription("自分が投稿したコメント一覧を取得する。どのGoalに何を書いたか振り返るのに便利。"+
+			"resolvedフィルタで解決済み/未解決のみ取得可能。"),
 		mcp.WithNumber("limit",
 			mcp.Description("Max number of comments to return (default: 50, max: 100)"),
+		),
+		mcp.WithString("resolved",
+			mcp.Description("Filter by resolved status: 'true' = resolved only, 'false' = unresolved only, omit = all"),
 		),
 	)
 }
@@ -291,6 +340,12 @@ func handleListMyComments(client *AddnessClient) server.ToolHandlerFunc {
 		}
 
 		path := fmt.Sprintf("/api/v1/team/comments?author_id=%s&limit=%d&sort=desc", memberID, limit)
+		if v := argStr(args, "resolved"); v != "" {
+			if v != "true" && v != "false" {
+				return errResult(fmt.Sprintf("invalid resolved value %q: must be 'true' or 'false'", v)), nil
+			}
+			path += "&resolved=" + v
+		}
 
 		data, err := client.Get(ctx, path)
 		if err != nil {
@@ -313,10 +368,14 @@ func listCommentsTool() mcp.Tool {
 	return mcp.NewTool("list_comments",
 		mcp.WithDescription(
 			"Goalのコメント一覧を取得する。Goalに紐づく議論・経緯・意思決定の履歴を確認できる。"+
-				"スレッド返信も含む。メンションは@名前で表示される。"),
+				"スレッド返信も含む。メンションは@名前で表示される。"+
+				"resolvedフィルタで解決済み/未解決のみ取得可能。"),
 		mcp.WithString("goal_id",
 			mcp.Required(),
 			mcp.Description("Goal ID (short ID)"),
+		),
+		mcp.WithString("resolved",
+			mcp.Description("Filter by resolved status: 'true' = resolved only, 'false' = unresolved only, omit = all"),
 		),
 	)
 }
@@ -329,7 +388,15 @@ func handleListComments(client *AddnessClient) server.ToolHandlerFunc {
 			return errResult(err.Error()), nil
 		}
 
-		data, err := client.Get(ctx, fmt.Sprintf("/api/v2/objectives/%s/comments", goalID))
+		commentPath := fmt.Sprintf("/api/v2/objectives/%s/comments", goalID)
+		if v := argStr(args, "resolved"); v != "" {
+			if v != "true" && v != "false" {
+				return errResult(fmt.Sprintf("invalid resolved value %q: must be 'true' or 'false'", v)), nil
+			}
+			commentPath += "?resolved=" + v
+		}
+
+		data, err := client.Get(ctx, commentPath)
 		if err != nil {
 			return errResult(fmt.Sprintf("failed: %v", err)), nil
 		}
