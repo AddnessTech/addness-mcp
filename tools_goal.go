@@ -188,7 +188,7 @@ func handleGetGoalAncestors(client *AddnessClient) server.ToolHandlerFunc {
 
 func updateGoalTool() mcp.Tool {
 	return mcp.NewTool("update_goal",
-		mcp.WithDescription("Goalを編集する。タイトル・完了基準（DoD）・ステータス・期限を更新できる。"),
+		mcp.WithDescription("Goalを編集する。タイトル・説明（現在の状態）・完了基準（理想の状態）・ステータス・期限を更新できる。"),
 		mcp.WithString("goal_id",
 			mcp.Required(),
 			mcp.Description("Goal ID (short ID)"),
@@ -196,8 +196,11 @@ func updateGoalTool() mcp.Tool {
 		mcp.WithString("title",
 			mcp.Description("New title (max 128 chars)"),
 		),
+		mcp.WithString("description",
+			mcp.Description("説明。ゴールの現在の状態を記述する。"),
+		),
 		mcp.WithString("definition_of_done",
-			mcp.Description("完了基準（DoD）。ゴールが達成された状態を記述する。"),
+			mcp.Description("完了基準（DoD）。ゴールの理想の状態を記述する。"),
 		),
 		mcp.WithString("status",
 			mcp.Description("New status. CANCELLED means 'paused' (temporarily on hold), not terminated."),
@@ -220,6 +223,9 @@ func handleUpdateGoal(client *AddnessClient) server.ToolHandlerFunc {
 		body := make(map[string]any)
 		if v := argStr(args, "title"); v != "" {
 			body["title"] = v
+		}
+		if v, ok := args["description"]; ok {
+			body["description"] = v
 		}
 		if v, ok := args["definition_of_done"]; ok {
 			body["definitionOfDone"] = v
@@ -408,13 +414,16 @@ func completeViaExecution(ctx context.Context, client *AddnessClient, goalID, ex
 
 func createGoalTool() mcp.Tool {
 	return mcp.NewTool("create_goal",
-		mcp.WithDescription("新しいGoalを作成する。parent_idで親Goalの下に子Goalとして作成可能。recurringで定常（繰り返し）パターンも同時に設定できる。"),
+		mcp.WithDescription("新しいGoalを作成する。parent_idを指定すると、親Goalの理想（DoD）と現在（説明）の差分を埋めるアクションとして子Goalを作成できる。recurringで定常（繰り返し）パターンも同時に設定できる。"),
 		mcp.WithString("title",
 			mcp.Required(),
 			mcp.Description("Goal title (max 128 chars)"),
 		),
+		mcp.WithString("description",
+			mcp.Description("説明。ゴールの現在の状態を記述する。"),
+		),
 		mcp.WithString("definition_of_done",
-			mcp.Description("完了基準（DoD）。ゴールが達成された状態を記述する。"),
+			mcp.Description("完了基準（DoD）。ゴールの理想の状態を記述する。"),
 		),
 		mcp.WithString("parent_id",
 			mcp.Description("Parent goal ID (short ID). Omit for root goal."),
@@ -448,6 +457,9 @@ func handleCreateGoal(client *AddnessClient) server.ToolHandlerFunc {
 		body := map[string]any{
 			"organizationId": client.OrganizationID(),
 			"title":          title,
+		}
+		if v := argStr(args, "description"); v != "" {
+			body["description"] = v
 		}
 		if v := argStr(args, "definition_of_done"); v != "" {
 			body["definitionOfDone"] = v
