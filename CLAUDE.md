@@ -59,7 +59,7 @@ Each tool file follows this pattern:
 ### Tool descriptions
 
 - Keep `description` in Japanese for user-facing tool descriptions
-- Use `definition_of_done` (not `description`) for goal DoD
+- Goal の `description` = 現在の状態、`definition_of_done` = 理想の状態（この2つは別フィールド）
 
 ## Rules
 

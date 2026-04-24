@@ -404,6 +404,7 @@ type goalInfo struct {
 	Title         string
 	Status        string
 	Description   string
+	DoD           string
 	Owner         string
 	Members       []string
 	DueDate       string
@@ -577,10 +578,8 @@ func extractGoalInfo(g map[string]any, ids *ShortIDCache) goalInfo {
 	fullID, _ := g["id"].(string)
 	title, _ := g["title"].(string)
 	status, _ := g["status"].(string)
-	desc, _ := g["definitionOfDone"].(string)
-	if desc == "" {
-		desc, _ = g["description"].(string)
-	}
+	desc, _ := g["description"].(string)
+	dod, _ := g["definitionOfDone"].(string)
 	dueDate, _ := g["dueDate"].(string)
 	completedAt, _ := g["completedAt"].(string)
 	createdAt, _ := g["createdAt"].(string)
@@ -606,6 +605,7 @@ func extractGoalInfo(g map[string]any, ids *ShortIDCache) goalInfo {
 		Title:         title,
 		Status:        status,
 		Description:   desc,
+		DoD:           dod,
 		Owner:         owner,
 		DueDate:       formatTime(dueDate),
 		CompletedAt:   formatTime(completedAt),
@@ -766,9 +766,12 @@ func formatGoalDetail(g goalInfo) string {
 		fmt.Fprintf(&sb, "Completed: %s\n", g.CompletedAt)
 	}
 	if g.Description != "" {
-		fmt.Fprintf(&sb, "\nDefinition of Done:\n%s\n", g.Description)
+		fmt.Fprintf(&sb, "\n説明（現在の状態）:\n%s\n", g.Description)
+	}
+	if g.DoD != "" {
+		fmt.Fprintf(&sb, "\n完了基準（理想の状態）:\n%s\n", g.DoD)
 	} else {
-		sb.WriteString("\n⚠ Definition of Done is empty. Align the DoD with the goal owner before starting work.\n")
+		sb.WriteString("\n⚠ 完了基準が未設定です。作業開始前にオーナーと理想の状態を擦り合わせてください。\n")
 	}
 	return sb.String()
 }
